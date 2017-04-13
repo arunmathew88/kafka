@@ -47,7 +47,10 @@ public class PunctuationQueue {
                 if (top.timestamp <= timestamp)
                     punctuator.punctuate(sched.node(), timestamp);
                 else {
+                    ProcessorNode node = ((StreamTask)punctuator).processorContext.currentNode();
+                    ((StreamTask)punctuator).processorContext.setCurrentNode(null);
                     punctuator.punctuate(sched.node(), top.timestamp + top.interval);
+                    ((StreamTask)punctuator).processorContext.setCurrentNode(node);
                 }
                 pq.add(sched.next(timestamp));
                 punctuated = true;

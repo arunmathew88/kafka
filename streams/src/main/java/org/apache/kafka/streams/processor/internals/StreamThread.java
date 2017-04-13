@@ -70,6 +70,7 @@ public class StreamThread extends Thread {
 
     private static final Logger log = LoggerFactory.getLogger(StreamThread.class);
     private static final AtomicInteger STREAM_THREAD_ID_SEQUENCE = new AtomicInteger(1);
+    private static final Long IDLE_PUNCTUATE_INTERVAL = 3000L;
 
     public final PartitionGrouper partitionGrouper;
     private final StreamsMetadataState streamsMetadataState;
@@ -105,6 +106,7 @@ public class StreamThread extends Thread {
     private long timerStartedMs;
     private long lastCleanMs;
     private long lastCommitMs;
+    private long lastPunctuateMs;
     private Throwable rebalanceException = null;
 
     private Map<TopicPartition, List<ConsumerRecord<byte[], byte[]>>> standbyRecords;
@@ -444,6 +446,7 @@ public class StreamThread extends Thread {
                         if (task.commitNeeded())
                             commitOne(task);
                     }
+                    lastPunctuateMs = timerStartedMs;
 
                 } else {
                     // even when no task is assigned, we must poll to get a task.
@@ -452,6 +455,15 @@ public class StreamThread extends Thread {
 
             } else {
                 requiresPoll = true;
+                if ((timerStartedMs - lastPunctuateMs) > IDLE_PUNCTUATE_INTERVAL && !activeTasks.isEmpty()) {
+                    for (StreamTask task : activeTasks.values()) {
+                        ProcessorNode node = task.processorContext.currentNode();
+                        task.processorContext.setCurrentNode(null);
+                        maybePunctuate(task);
+                        task.processorContext.setCurrentNode(node);
+                    }
+                    lastPunctuateMs = timerStartedMs;
+                }
             }
             maybeCommit();
             maybeUpdateStandbyTasks();
