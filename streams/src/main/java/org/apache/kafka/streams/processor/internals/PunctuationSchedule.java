@@ -20,6 +20,7 @@ package org.apache.kafka.streams.processor.internals;
 public class PunctuationSchedule extends Stamped<ProcessorNode> {
 
     final long interval;
+    long systemTimestamp;
 
     public PunctuationSchedule(ProcessorNode node, long interval) {
         this(node, 0L, interval);
@@ -28,6 +29,7 @@ public class PunctuationSchedule extends Stamped<ProcessorNode> {
     public PunctuationSchedule(ProcessorNode node, long time, long interval) {
         super(node, time);
         this.interval = interval;
+        this.systemTimestamp = System.currentTimeMillis();
     }
 
     public ProcessorNode node() {

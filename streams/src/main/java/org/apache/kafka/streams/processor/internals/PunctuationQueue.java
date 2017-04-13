@@ -22,6 +22,7 @@ import java.util.PriorityQueue;
 public class PunctuationQueue {
 
     private final PriorityQueue<PunctuationSchedule> pq = new PriorityQueue<>();
+    private final Boolean IsHybridPunctuateEnabled = Boolean.parseBoolean(System.getProperty("HYBRID_PUNCTUATE", "true"));
 
     public void schedule(PunctuationSchedule sched) {
         synchronized (pq) {
@@ -38,11 +39,16 @@ public class PunctuationQueue {
     public boolean mayPunctuate(long timestamp, Punctuator punctuator) {
         synchronized (pq) {
             boolean punctuated = false;
+            long currentSystemTime = System.currentTimeMillis();
             PunctuationSchedule top = pq.peek();
-            while (top != null && top.timestamp <= timestamp) {
+            while (top != null && (top.timestamp <= timestamp || (IsHybridPunctuateEnabled && (top.systemTimestamp + top.interval) < currentSystemTime))) {
                 PunctuationSchedule sched = top;
                 pq.poll();
-                punctuator.punctuate(sched.node(), timestamp);
+                if (top.timestamp <= timestamp)
+                    punctuator.punctuate(sched.node(), timestamp);
+                else {
+                    punctuator.punctuate(sched.node(), top.timestamp + top.interval);
+                }
                 pq.add(sched.next(timestamp));
                 punctuated = true;
 
